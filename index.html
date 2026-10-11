@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的相册</title>
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --card: #ffffff;
+      --primary: #1877f2;
+      --text: #1c1e21;
+      --muted: #65676b;
+      --border: #e4e6eb;
+    }
+    
+    * { box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+    }
+    
+    .header {
+      background: var(--card);
+      padding: 16px 20px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+    
+    .header p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .upload-section {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .upload-area {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .upload-area:hover {
+      border-color: var(--primary);
+      background: rgba(24, 119, 242, 0.05);
+    }
+    
+    .upload-area.dragover {
+      border-color: var(--primary);
+      background: rgba(24, 119, 242, 0.1);
+    }
+    
+    .upload-area input { display: none; }
+    
+    .upload-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+    
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .card-img-wrap {
+      position: relative;
+      height: 200px;
+      overflow: hidden;
+    }
+    
+    .card-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .card-actions {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      gap: 6px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    
+    .card:hover .card-actions { opacity: 1; }
+    
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    
+    .btn-edit { background: rgba(255,255,255,0.9); }
+    .btn-delete { background: rgba(255,0,0,0.9); color: white; }
+    
+    .card-content {
+      padding: 16px;
+    }
+    
+    .card-title {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    
+    .card-text {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    
+    .empty-state svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    
+    /* 模态框 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .modal-overlay.active { display: flex; }
+    
+    .modal {
+      background: var(--card);
+      border-radius: 12px;
+      max-width: 400px;
+      width: 100%;
+      padding: 24px;
+    }
+    
+    .modal h2 { margin: 0 0 20px; }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+    
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+    
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    
+    .modal-btns {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+    
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: #166fe5; }
+    
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-secondary:hover { background: #d8dadf; }
+    
+    /* 大图预览 */
+    .preview-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    }
+    
+    .preview-overlay.active { display: flex; }
+    
+    .preview-overlay img {
+      max-width: 90%;
+      max-height: 90%;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>📷 我的相册</h1>
+    <p>上传照片，记录美好时刻</p>
+  </header>
+  
+  <main class="container">
+    <div class="upload-section">
+      <div class="upload-area" id="uploadArea">
+        <input type="file" id="fileInput" accept="image/*" multiple>
+        <div class="upload-icon">🖼️</div>
+        <p><strong>点击上传</strong> 或拖拽图片到此处</p>
+        <p style="color: var(--muted); font-size: 0.85rem; margin-top: 8px;">支持 JPG、PNG、GIF、WebP</p>
+      </div>
+    </div>
+    
+    <div id="gallery" class="gallery"></div>
+    <div id="emptyState" class="empty-state" style="display: none;">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+      <p>还没有照片，点击上方上传</p>
+    </div>
+  </main>
+  
+  <!-- 编辑模态框 -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <h2>编辑照片</h2>
+      <div class="form-group">
+        <label>标题</label>
+        <input type="text" id="editTitle" placeholder="输入标题">
+      </div>
+      <div class="form-group">
+        <label>描述</label>
+        <textarea id="editText" placeholder="输入描述..."></textarea>
+      </div>
+      <div class="modal-btns">
+        <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveEdit()">保存</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 大图预览 -->
+  <div class="preview-overlay" id="previewOverlay" onclick="this.classList.remove('active')">
+    <img id="previewImg" src="" alt="预览">
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'photoGallery_v1';
+    let galleryData = [];
+    let editingIndex = null;
+    
+    // 加载数据
+    function loadData() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        galleryData = JSON.parse(stored);
+      }
+      renderGallery();
+    }
+    
+    // 保存数据
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(galleryData));
+    }
+    
+    // 渲染画廊
+    function renderGallery() {
+      const gallery = document.getElementById('gallery');
+      const emptyState = document.getElementById('emptyState');
+      
+      if (galleryData.length === 0) {
+        gallery.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+      
+      emptyState.style.display = 'none';
+      gallery.innerHTML = galleryData.map((item, index) => `
+        <div class="card">
+          <div class="card-img-wrap">
+            <img src="${item.image}" alt="${item.title}" class="card-img" onclick="previewImage('${item.image}')">
+            <div class="card-actions">
+              <button class="btn-icon btn-edit" onclick="openEdit(${index})" title="编辑">✏️</button>
+              <button class="btn-icon btn-delete" onclick="deletePhoto(${index})" title="删除">🗑️</button>
+            </div>
+          </div>
+          <div class="card-content">
+            <h3 class="card-title">${escapeHtml(item.title)}</h3>
+            <p class="card-text">${escapeHtml(item.text)}</p>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    // 转义HTML
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    // 预览大图
+    function previewImage(src) {
+      document.getElementById('previewImg').src = src;
+      document.getElementById('previewOverlay').classList.add('active');
+    }
+    
+    // 打开编辑
+    function openEdit(index) {
+      editingIndex = index;
+      document.getElementById('editTitle').value = galleryData[index].title;
+      document.getElementById('editText').value = galleryData[index].text;
+      document.getElementById('editModal').classList.add('active');
+    }
+    
+    // 关闭模态框
+    function closeModal() {
+      document.getElementById('editModal').classList.remove('active');
+      editingIndex = null;
+    }
+    
+    // 保存编辑
+    function saveEdit() {
+      if (editingIndex === null) return;
+      galleryData[editingIndex].title = document.getElementById('editTitle').value;
+      galleryData[editingIndex].text = document.getElementById('editText').value;
+      saveData();
+      renderGallery();
+      closeModal();
+    }
+    
+    // 删除照片
+    function deletePhoto(index) {
+      if (!confirm('确定要删除这张照片吗？')) return;
+      galleryData.splice(index, 1);
+      saveData();
+      renderGallery();
+    }
+    
+    // 处理文件上传
+    function handleFiles(files) {
+      Array.from(files).forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+        
+        // 压缩图片
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          compressImage(e.target.result, 800, 0.8, (compressed) => {
+            galleryData.push({
+              image: compressed,
+              title: file.name.replace(/\.[^/.]+$/, ''),
+              text: '',
+              date: new Date().toISOString()
+            });
+            saveData();
+            renderGallery();
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    
+    // 压缩图片
+    function compressImage(dataUrl, maxWidth, quality, callback) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        callback(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = dataUrl;
+    }
+    
+    // 事件绑定
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    
+    uploadArea.addEventListener('click', () => fileInput.click());
+    
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+    
+    fileInput.addEventListener('change', (e) => {
+      handleFiles(e.target.files);
+      fileInput.value = '';
+    });
+    
+    // 点击模态框外部关闭
+    document.getElementById('editModal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('editModal')) closeModal();
+    });
+    
+    // 初始化
+    loadData();
+  </script>
+</body>
+</html>
